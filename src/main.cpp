@@ -3,6 +3,7 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
+#include <Credentials.h>
 
 #define _debug			// Set debug mode for development.
 //#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
@@ -41,22 +42,22 @@ byte receivedBytes[blockSize] = {};
 SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
 
 // Parâmetros do WiFi
-const char *ssid = "Segel";         // your network SSID (name)
-const char *password = "Inmetro1";    // your network key
+const char *ssid = WIFI_SSID;         // your network SSID (name)
+const char *password = WIFI_PWD;    // your network key
 WiFiClient espClient;
 
 /* Parâmetros do serviço MQTT
 Observation: const char *ptr is a pointer to a constant character. You cannot change the value pointed by ptr,
 but you can change the pointer itself. "const char *" is a (non-const) pointer to a const char.
 */
-const char *mqtt_server = "192.168.1.100";
-const char *clientId = "Dimel/Segel";
-const char *commandTopic = "Dimel/Segel/command";	// Topic used to receive commands from NodeRed
-const char *dataTopic = "Dimel/Segel/data";			// Topic used to send data to NodeRed
+const char *mqtt_server = MQQT_SERVER_IP;
+const char *clientId = concat(BASE_TOPIC, "/Segel");
+const char *commandTopic = concat(BASE_TOPIC, "/command");	// Topic used to receive commands from NodeRed
+const char *dataTopic = concat(BASE_TOPIC, "data");			// Topic used to send data to NodeRed
 
 // LWT message constants
 byte willQos = 1;
-const char *willTopic = "Dimel/Segel/status";
+const char *willTopic = concat(BASE_TOPIC, "/status");
 const char *willMessage = "Offline";
 bool willRetain = true;
 
