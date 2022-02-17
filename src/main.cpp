@@ -5,7 +5,7 @@
 #include <ArduinoOTA.h>
 #include <Credentials.h>
 
-#define _debug			// Set debug mode for development.
+#define _debug			// Set debug mode for print messages in development.
 //#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
 
 // Códigos ABNT NBR 14522:2008 para sincronizar comunicação
