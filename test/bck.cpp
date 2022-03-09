@@ -3,21 +3,9 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
-#include <Credentials.h>
 
-#ifndef CREDENTIALS_h
-#include <Credentials_example.h>
-#endif
-
-#define _debug			// Set debug mode for print messages in development.
+#define _debug			// Set debug mode for development.
 //#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
-
-// Códigos ABNT NBR 14522:2008 para sincronizar comunicação
-#define ENQ 0x05
-#define ACK 0x06
-#define NAK 0x15
-
-#define SW_SERIAL_UNUSED_PIN -1
 
 // Function prototypes
 void setup_wifi(void);
@@ -34,6 +22,13 @@ unsigned long converteId(byte *message_id);
 byte bcdToDec(byte val);
 unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 
+// Códigos ABNT NBR 14522:2008 para sincronizar comunicação
+#define ENQ 0x05
+#define ACK 0x06
+#define NAK 0x15
+
+#define SW_SERIAL_UNUSED_PIN -1
+
 bool sendData = false;	// Flag para informar que foi enviado comando
 bool newData = false;
 
@@ -46,26 +41,21 @@ byte receivedBytes[blockSize] = {};
 SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
 
 // Parâmetros do WiFi
-const char *ssid = WIFI_SSID;         // your network SSID (name)
-const char *password = WIFI_PWD;    // your network key
+const char *ssid = "SSID";         // your network SSID (name)
+const char *password = "PASWD";    // your network key
 WiFiClient espClient;
 
 /* Parâmetros do serviço MQTT
 Observation: const char *ptr is a pointer to a constant character. You cannot change the value pointed by ptr,
 but you can change the pointer itself. "const char *" is a (non-const) pointer to a const char.
 */
-const char *mqtt_server = MQQT_SERVER_IP;
-const char *clientId = BASE_TOPIC;
-char commandTopic[TOPIC_LENGTH + 7];  // Topic used to receive commands from NodeRed
-strcpy(commandTopic, BASE_TOPIC);
-strcat(commandTopic, "command");
-char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
-strcpy(dataTopic, BASE_TOPIC);
-strcat(dataTopic, "data");
-
+const char *mqtt_server = "Broker-ip";
+const char *clientId = "Your client identifier";
+const char *commandTopic = "Your topic to transfer commands";	// Topic used to receive commands from NodeRed
+const char *dataTopic = "Your topic to transfer data";			// Topic used to send data to NodeRed
 // LWT message constants
 byte willQos = 1;
-const char *willTopic = strcpy(BASE_TOPIC, "/status");
+const char *willTopic = "Your topic to transfer status";
 const char *willMessage = "Offline";
 bool willRetain = true;
 
@@ -83,14 +73,12 @@ unsigned long previousMillis = 0;        // will store last time LED was updated
 const long interval = 90000;           // interval at which to read (milliseconds)
 
 // Array with Command 23 - Reading registers of visible channels.
-const PROGMEM byte command_23[66] = {
-  0x23, 0x12, 0x34, 0x56, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x0b
-};
+const PROGMEM byte command_23[66] = {0x23, 0x12, 0x34, 0x56, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x0b};
 
 void setup() {
 	Serial.begin(baudRate);		// Debug serial port. Must be changed to communication port after the end of development.
@@ -152,26 +140,26 @@ void setup() {
 }
 
 void loop() {
-
+	
 	ArduinoOTA.handle();
-
+	
 	// Check to see if it's time to read the meter data; that is, if the difference between the current
 	// time and last time you read the meter is bigger than the interval at which you want to read it.
 	unsigned long currentMillis = millis();
-
+	
 	if ((currentMillis - previousMillis >= interval) && (sendData == false)) {
 		// Send command to the meter.
 		sendCommand_23();
-
+		
 		// Save the last time you read the meter.
 		previousMillis = currentMillis;
 	}
-
-  if (sendData == true) recvBytes();
-  if (newData == true) showNewData();
-
-  if (!client.connected()) reconnect();
-  client.loop();
+	
+    if (sendData == true) recvBytes();
+    if (newData == true) showNewData();
+	
+	if (!client.connected()) reconnect();
+	client.loop();
 }
 
 // Configura o Wifi 
@@ -191,9 +179,6 @@ void setup_wifi() {
 			swSer.print(F("."));
 		#endif
 	}
-
-  // Set new hostname
-  WiFi.hostname(BASE_TOPIC);
 	
 	// Disconnect stations from the network established by the soft-AP.
 	WiFi.softAPdisconnect(true);
@@ -216,7 +201,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	swSer.print("Message arrived [");
 	swSer.print(topic);
 	swSer.print("] ");
-	for (unsigned int i = 0; i < length; i++) {
+	for (int i = 0; i < length; i++) {
 		swSer.print((char)payload[i]);
 	}
 	swSer.println();
@@ -230,7 +215,7 @@ void reconnect() {
 	while (!client.connected()) {
 		
 		#ifdef _debug
-			swSer.println(F("Attempting MQTT connection..."));
+			swSer.print(F("Attempting MQTT connection..."));
 		#endif
 
 		// Attempt to connect
@@ -241,28 +226,28 @@ void reconnect() {
 			client.subscribe(commandTopic);
 			
 			#ifdef _debug
-				swSer.print("Connected as "); swSer.println(clientId);
-				swSer.print("Subscribe to topic: "); swSer.println(commandTopic);
-				swSer.print("Data are send to topic ");swSer.println(dataTopic);
+				swSer.println("Connected as " + String(clientId));
+				swSer.println("Subscribe to topic " + String(commandTopic));
+				swSer.println("Data are send to topic " + String(dataTopic));
 			#endif
-
+			
 			// Publish status message indicating the client Node as online.
 			client.publish(willTopic, "Online");
 		}
 		else {
-
+			
 			#ifdef _debug
 				swSer.print(F("Failed, rc = "));
 				swSer.println(client.state());
 				swSer.println(F("Try again in 5 seconds."));
 			#endif
-
+			
 			attempt += 1;
 			if (attempt >= 20) ESP.restart();
-
+			
 			// Wait 5 seconds before retrying
 			delay(5000);
-
+			
 			#ifdef _debug
 				swSer.println(F("Attempt number "));
 				swSer.println(attempt);
@@ -290,38 +275,38 @@ void sendCommand_23() {
 	Serial.begin(baudRate);		// Habilita serial
 	disablePullUp();
 	delay(1500);			// Aguarda tempo para medidor reconhecer início de transmissão.
-
+	
 	#ifdef _debug
 		swSer.println(F("Start sendCommand_23"));
 	#endif
-
+	
 	while (Serial.available() > 0) {
 		rb = Serial.read();
 		#ifdef _debug
 			swSer.print(F("sendCommand_23: rb = ")); swSer.println(rb, HEX);
 		#endif
 	}
-
+	
 	if (rb == ENQ) {
 		// Envia comando
 		for (int k = 0; k < 66; k++) {
 			byte myChar = pgm_read_byte(command_23 + k);
 			Serial.write(myChar);
-
+			
 			#ifdef _printRx
 				swSer.print(myChar, HEX);
 				swSer.print(F(","));
 			#endif
 		}
 		#ifdef _debug
-			swSer.println(F("Command 23 sent"));
+			swSer.println(F("Command sent"));
 		#endif
-
+		
 		sendData = true;		// Habilita 
 	}
 	else {
 		sendData = false;
-
+		
 		// Publish status message indicating the client Node as Meter Not Connected.
 		client.publish(willTopic, "MeterNotConnected");
 		#ifdef _debug
@@ -380,7 +365,7 @@ void recvBytes() {
 		}
 
 		if (recvInProgress == true) {
-      if (ndx < blockSize) {
+            if (ndx < blockSize) {
                 receivedBytes[ndx] = rb;
 				#ifdef _printRx
 					//swSer.print(F("recvBytes: rb = "));
@@ -390,9 +375,9 @@ void recvBytes() {
 				#endif
 				ndx++;
 			}
-      else {
-        recvInProgress = false;
-        ndx = 0;
+            else {
+                recvInProgress = false;
+                ndx = 0;
 				newData = true;
 				sendData = false;
 				#ifdef _debug
@@ -401,13 +386,14 @@ void recvBytes() {
 				sendAck();
 			}
 		}
+		
 		yield();		// Efetua o feed do SW WDT.
 	}
 }
 
 // Calcular CRC do dado recebido do medidor. Caso esteja ok, chama a função de publicação da informação no broker.
 void showNewData() {
-  if (newData == true) {
+    if (newData == true) {
 
 		#ifdef _debug
 			swSer.println(F("Start showNewData"));
@@ -421,7 +407,7 @@ void showNewData() {
 		if (crc != 0)
 		{
 			#ifdef _debug
-			  swSer.println(F("Erro de CRC."));
+				swSer.println(F("Erro de CRC."));
 			#endif
 			return;
 		}
@@ -440,7 +426,7 @@ void showNewData() {
 			}
 			swSer.println();
 		#endif
-  }
+    }
 }
 
 // Imprime na tela a energia e o tipo com base no campo escopo.
@@ -465,7 +451,7 @@ void publish_data(unsigned long meterId, unsigned long meter_data[3]) {
 	snprintf (msg, 13, "A2%lu", meter_data[0]);
 	client.publish(dataTopic, msg);
 	#ifdef _debug
-		swSer.print(F(", ")); swSer.print(msg);
+		swSer.print(msg);
 	#endif
 	
 	// Publish reactive energy
@@ -529,7 +515,7 @@ https://www.copel.com/hpcopel/root/pagcopel2.nsf/0/4310F832B8AD31D00325776F005DC
 */
 	unsigned int retorno = 0;
 	unsigned int crcpolinv = 0x4003;
-	int i;
+	unsigned int i;
 	unsigned int j;
 	for (i = 0; i < tamanho_buffer; i++) {
 		retorno ^= (array[i] & 0xFF);
