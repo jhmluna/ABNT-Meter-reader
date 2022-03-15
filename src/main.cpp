@@ -33,7 +33,7 @@ char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
 
 void setup() {
 	Serial.setRxBufferSize(blockSize);
-	Serial.begin(baudRate);		// Debug serial port. Must be changed to communication port after the end of development.
+	Serial.begin(baudRate);		// Comm Serial port. Must be changed to communication port after the end of development.
 
 	#ifdef _debug				// Debug serial port. Must be disabled after the end of development.
 		swSer.begin(baudRate);
@@ -110,6 +110,11 @@ void setup() {
 }
 
 void loop() {
+	ArduinoOTA.handle();
+	
+	// Check to see if it's time to read the meter data; that is, if the difference between the current
+	// time and last time you read the meter is bigger than the interval at which you want to read it.
+	unsigned long currentMillis = millis();
 
 }
 

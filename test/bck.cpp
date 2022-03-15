@@ -369,8 +369,8 @@ void recvBytes() {
 		}
 
 		if (recvInProgress == true) {
-            if (ndx < blockSize) {
-                receivedBytes[ndx] = rb;
+      if (ndx < blockSize) {
+        receivedBytes[ndx] = rb;
 				#ifdef _printRx
 					//swSer.print(F("recvBytes: rb = "));
 					//swSer.println(rb,HEX);
@@ -379,9 +379,9 @@ void recvBytes() {
 				#endif
 				ndx++;
 			}
-            else {
-                recvInProgress = false;
-                ndx = 0;
+      else {
+        recvInProgress = false;
+        ndx = 0;
 				newData = true;
 				sendData = false;
 				#ifdef _debug
