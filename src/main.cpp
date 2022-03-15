@@ -5,6 +5,7 @@
 #include <ArduinoOTA.h>
 #include <Credentials.h>
 #include <ABNT.h>
+#include <Comm.h>
 
 #define _debug			// Set debug mode for development.
 //#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
@@ -24,18 +25,20 @@ unsigned long converteId(byte *message_id);
 byte bcdToDec(byte val);
 unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 
+// Software Serial for debug Conisdering ESP-01
+SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
+
 char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
 char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
 
 void setup() {
-	Serial.begin(baudRate);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
+	Serial.setRxBufferSize(blockSize);
+	Serial.begin(baudRate);		// Debug serial port. Must be changed to communication port after the end of development.
 
-  	Serial.begin(baudRate);		// Debug serial port. Must be changed to communication port after the end of development.
-	Serial.setRxBufferSize(258);
-	swSer.begin(baudRate);		// Comm serial port. Must be disabled after the end of development.
+	#ifdef _debug				// Debug serial port. Must be disabled after the end of development.
+		swSer.begin(baudRate);
+		swSer.print(F("Início do Setup."));
+	#endif
 
 	swSer.print(F("Início do Setup."));
 
@@ -88,7 +91,9 @@ void setup() {
 
 	ArduinoOTA.begin();
 
-	swSer.print(F("Fim do Setup."));
+	#ifdef _debug
+		swSer.print(F("Fim do Setup."));
+	#endif
 
   strcpy(dataTopic, BASE_TOPIC);
   strcat(dataTopic, "data");
@@ -106,4 +111,38 @@ void setup() {
 
 void loop() {
 
+}
+
+// Desabilita pull up do pino referente ao GPIO3 que é o RX do ESP8266 para receber dados da porta ótica.
+void disablePullUp() {
+	// Desabilita pull up do pino referente ao RX GPIO3 - eagle_soc.h
+	// C:\Users\<USER>\AppData\Local\Arduino15\packages\esp8266\hardware\esp8266\2.5.2\tools\sdk\include\eagle_soc.h
+	PIN_PULLUP_DIS(PERIPHS_IO_MUX_U0RXD_U);
+}
+
+// Configura o Wifi 
+void setup_wifi() {
+	
+	delay(10);
+	
+	#ifdef _debug
+		swSer.print(F("Connecting to "));
+		swSer.println(WIFI_SSID);
+	#endif
+	
+	WiFi.begin(WIFI_SSID, WIFI_PWD);
+	while (WiFi.status() != WL_CONNECTED) {
+		delay(500);
+		#ifdef _debug
+			swSer.print(F("."));
+		#endif
+	}
+	
+	// Disconnect stations from the network established by the soft-AP.
+	WiFi.softAPdisconnect(true);
+	
+	#ifdef _debug
+		swSer.print(F(" WiFi connected.\nIP address: "));
+		swSer.println(WiFi.localIP());
+	#endif
 }

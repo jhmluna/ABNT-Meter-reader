@@ -81,11 +81,13 @@ const PROGMEM byte command_23[66] = {0x23, 0x12, 0x34, 0x56, 0x00, 0x00, 0x00, 0
 								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x0b};
 
 void setup() {
-	Serial.begin(baudRate);		// Debug serial port. Must be changed to communication port after the end of development.
-	Serial.setRxBufferSize(258);
-	swSer.begin(baudRate);		// Comm serial port. Must be disabled after the end of development.
-
-	swSer.print(F("Início do Setup."));
+	Serial.setRxBufferSize(258); // Changes the RX buffer size as needed.
+	Serial.begin(baudRate);		// Comm serial port. Must be changed to communication port after the end of development.
+	
+	#ifdef _debug				// Debug serial port. Must be disabled after the end of development.
+		swSer.begin(baudRate);
+		swSer.print(F("Início do Setup."));
+	#endif
 
 	// Desabilita pull up do pino referente ao RX GPIO3 - eagle_soc.h
 	disablePullUp();
@@ -136,7 +138,9 @@ void setup() {
 
 	ArduinoOTA.begin();
 
-	swSer.print(F("Fim do Setup."));
+	#ifdef _debug
+		swSer.print(F("Fim do Setup."));
+	#endif
 }
 
 void loop() {
