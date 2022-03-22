@@ -5,7 +5,6 @@
 #include <ArduinoOTA.h>
 #include "Credentials.h"
 #include "ABNT.h"
-#include "Comm.h"
 
 #define _debug			// Set debug mode for development.
 //#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
@@ -16,7 +15,6 @@ void disablePullUp(void);
 void callback(char* topic, byte* payload, unsigned int length);
 void reconnect(void);
 void sendAck(void);
-void recvBytes(void);
 void showNewData(void);
 void publish_data(unsigned long meterId, unsigned long meter_data[3]);
 unsigned long * converte_energia(byte *message_energia);
@@ -24,13 +22,17 @@ unsigned long converteId(byte *message_id);
 byte bcdToDec(byte val);
 unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 
-// Software Serial for debug Conisdering ESP-01
-SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
+#ifdef _debug
+	// Set RX as unused pin in software serial as it is only used for print debug messages
+	#define SW_SERIAL_UNUSED_PIN -1
+	// Software Serial for debug Conisdering ESP-01
+	SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
+#endif
 
 char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
 char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
 
-const long interval = 90000;   // Interval at which to pooling the meter (milliseconds)
+const long interval = 30000;   // Interval at which to pooling the meter (milliseconds)
 
 /*
 	Generally, you should use "unsigned long" for variables that hold time
@@ -38,6 +40,7 @@ const long interval = 90000;   // Interval at which to pooling the meter (millis
 */
 unsigned long previousMillis = 0;	// Will store last time LED was updated
 
+Abnt abnt;
 
 void setup() {
 	Serial.setRxBufferSize(blockSize);
@@ -124,10 +127,7 @@ void loop() {
 	unsigned long currentMillis = millis();
 
 	if (currentMillis - previousMillis >= interval) {
-		swSer.println(Abnt::ACK);
-		swSer.println(Abnt::ENQ);
-		swSer.println(Abnt::NAK);
-
+		(abnt.sendCommand_23()) ? swSer.println("True") : swSer.println("False");
 		// Save the last time you read the meter.
 		previousMillis = currentMillis;
 	}
