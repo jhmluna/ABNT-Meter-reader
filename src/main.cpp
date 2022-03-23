@@ -3,9 +3,8 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
-#include <Credentials.h>
-#include <ABNT.h>
-#include <Comm.h>
+#include "Credentials.h"
+#include "ABNT.h"
 
 #define _debug			// Set debug mode for development.
 //#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
@@ -15,9 +14,7 @@ void setup_wifi(void);
 void disablePullUp(void);
 void callback(char* topic, byte* payload, unsigned int length);
 void reconnect(void);
-void sendCommand_23(void);
 void sendAck(void);
-void recvBytes(void);
 void showNewData(void);
 void publish_data(unsigned long meterId, unsigned long meter_data[3]);
 unsigned long * converte_energia(byte *message_energia);
@@ -25,11 +22,25 @@ unsigned long converteId(byte *message_id);
 byte bcdToDec(byte val);
 unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 
-// Software Serial for debug Conisdering ESP-01
-SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
+#ifdef _debug
+	// Set RX as unused pin in software serial as it is only used for print debug messages
+	#define SW_SERIAL_UNUSED_PIN -1
+	// Software Serial for debug Conisdering ESP-01
+	SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
+#endif
 
 char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
 char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
+
+const long interval = 30000;   // Interval at which to pooling the meter (milliseconds)
+
+/*
+	Generally, you should use "unsigned long" for variables that hold time
+	The value will quickly become too large for an int to store
+*/
+unsigned long previousMillis = 0;	// Will store last time LED was updated
+
+Abnt abnt;
 
 void setup() {
 	Serial.setRxBufferSize(blockSize);
@@ -39,8 +50,6 @@ void setup() {
 		swSer.begin(baudRate);
 		swSer.print(F("Início do Setup."));
 	#endif
-
-	swSer.print(F("Início do Setup."));
 
 	// Desabilita pull up do pino referente ao RX GPIO3 - eagle_soc.h
 	disablePullUp();
@@ -96,17 +105,18 @@ void setup() {
 	#endif
 
   strcpy(dataTopic, BASE_TOPIC);
-  strcat(dataTopic, "data");
+  strcat(dataTopic, "/data");
 
   strcpy(commandTopic, BASE_TOPIC);
-  strcat(commandTopic, "command");
+  strcat(commandTopic, "/command");
 
-  Serial.println("");
-  Serial.print("Tamanho do tópico: ");
-  Serial.println(TOPIC_LENGTH);
-  Serial.print(BASE_TOPIC);
-  Serial.print(dataTopic);
-  Serial.print(commandTopic);
+  swSer.println("");
+  swSer.print("Tamanho do tópico: ");
+  swSer.println(TOPIC_LENGTH);
+  swSer.println(BASE_TOPIC);
+  swSer.println(dataTopic);
+  swSer.println(commandTopic);
+	swSer.println(clientId);
 }
 
 void loop() {
@@ -116,6 +126,11 @@ void loop() {
 	// time and last time you read the meter is bigger than the interval at which you want to read it.
 	unsigned long currentMillis = millis();
 
+	if (currentMillis - previousMillis >= interval) {
+		(abnt.sendCommand_23()) ? swSer.println("True") : swSer.println("False");
+		// Save the last time you read the meter.
+		previousMillis = currentMillis;
+	}
 }
 
 // Desabilita pull up do pino referente ao GPIO3 que é o RX do ESP8266 para receber dados da porta ótica.
@@ -129,12 +144,15 @@ void disablePullUp() {
 void setup_wifi() {
 	
 	delay(10);
+
+	// Act as wifi client only.
+	WiFi.mode(WIFI_STA);
 	
 	#ifdef _debug
 		swSer.print(F("Connecting to "));
 		swSer.println(WIFI_SSID);
 	#endif
-	
+
 	WiFi.begin(WIFI_SSID, WIFI_PWD);
 	while (WiFi.status() != WL_CONNECTED) {
 		delay(500);
@@ -143,11 +161,17 @@ void setup_wifi() {
 		#endif
 	}
 	
+	// Set hostname
+	WiFi.hostname(clientId);
+	
 	// Disconnect stations from the network established by the soft-AP.
 	WiFi.softAPdisconnect(true);
 	
 	#ifdef _debug
-		swSer.print(F(" WiFi connected.\nIP address: "));
+		swSer.print(F("MAC: "));
+		swSer.println(WiFi.macAddress());
+
+		swSer.print(F("WiFi connected.\nIP address: "));
 		swSer.println(WiFi.localIP());
 	#endif
 }
