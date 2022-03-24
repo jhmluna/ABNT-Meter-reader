@@ -5,11 +5,14 @@
 #define ABNT_H
 
 #include <Arduino.h>
+#include <SoftwareSerial.h>
+
+#define _debug			// Set debug mode for development.
+#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
 
 // Set up serial
-const int baudRate = 9600;	// Serial Baude rate for meter communication
-const int blockSize = 258;	// Response Block Size
-byte receivedBytes[blockSize] = {};
+const int baudRate = 9600; // Serial Baude rate for meter communication
+const int blockSize = 258; // Response Block Size
 
 class Abnt
 {
@@ -18,17 +21,22 @@ class Abnt
 	const int _ACK = 0x06;
 	const int _NAK = 0x15;
 
+  byte receivedBytes[blockSize];
+
 	// Array with Command 23 - Reading registers of visible channels.
 	const byte command_23[66];
+	// Serial port for debug purposes.
+	SoftwareSerial & _debugPort;
 
 public:
-	Abnt()
+	Abnt(SoftwareSerial & ss)
 			: command_23{0x23, 0x12, 0x34, 0x56, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 									 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 									 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 									 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 									 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 									 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x0b}
+			, _debugPort(ss)
 	{
 	}
 	bool sendCommand_23(void);

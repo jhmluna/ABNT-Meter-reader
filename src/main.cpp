@@ -6,9 +6,6 @@
 #include "Credentials.h"
 #include "ABNT.h"
 
-#define _debug			// Set debug mode for development.
-//#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
-
 // Function prototypes
 void setup_wifi(void);
 void disablePullUp(void);
@@ -40,7 +37,7 @@ const long interval = 30000;   // Interval at which to pooling the meter (millis
 */
 unsigned long previousMillis = 0;	// Will store last time LED was updated
 
-Abnt abnt;
+Abnt abnt(swSer);
 
 void setup() {
 	Serial.setRxBufferSize(blockSize);
@@ -127,7 +124,11 @@ void loop() {
 	unsigned long currentMillis = millis();
 
 	if (currentMillis - previousMillis >= interval) {
-		(abnt.sendCommand_23()) ? swSer.println("True") : swSer.println("False");
+		bool meterReady = abnt.sendCommand_23();
+		if (meterReady) {
+			swSer.println("True");
+			(abnt.receiveBytes()) ? swSer.println("Received bytes") : swSer.println("Error in communication");
+		}
 		// Save the last time you read the meter.
 		previousMillis = currentMillis;
 	}

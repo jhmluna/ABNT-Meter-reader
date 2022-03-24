@@ -18,13 +18,13 @@ bool Abnt::sendCommand_23() {
 	delay(1500);			// Aguarda tempo para medidor reconhecer início de transmissão.
 	
 	#ifdef _debug
-		swSer.println(F("Start sendCommand_23"));
+		_debugPort.println(F("Start sendCommand_23"));
 	#endif
 
-  	while (Serial.available() > 0) {
+  while (Serial.available() > 0) {
 		rb = Serial.read();
 		#ifdef _debug
-			swSer.print(F("sendCommand_23: rb = ")); swSer.println(rb, HEX);
+			_debugPort.print(F("sendCommand_23: rb = ")); _debugPort.println(rb, HEX);
 		#endif
 	}
 	
@@ -35,19 +35,19 @@ bool Abnt::sendCommand_23() {
 			Serial.write(myChar);
 			
 			#ifdef _printRx
-				swSer.print(myChar, HEX);
-				swSer.print(F(","));
+				_debugPort.print(myChar, HEX);
+				_debugPort.print(F(","));
 			#endif
 		}
 		#ifdef _debug
-			swSer.println(F("Command sent"));
+			_debugPort.println(F("Command sent"));
 		#endif
 		
 		return true;
 	}
 	else {
 		#ifdef _debug
-			swSer.println(F("Não recebeu ENQ"));
+			_debugPort.println(F("Não recebeu ENQ"));
 		#endif
 
     return false;
@@ -66,13 +66,13 @@ bool Abnt::receiveBytes() {
 		rb = Serial.read();
 
 		#ifdef _printRx
-			swSer.print(F("receiveBytes: rb = ")); swSer.println(rb,HEX);
+			_debugPort.print(F("receiveBytes: rb = ")); _debugPort.println(rb,HEX);
 		#endif
 		
 		if ((rb == _ENQ || rb == _NAK) && ndx == 0) {
 
 			#ifdef _debug
-				swSer.println(F("NAK, ENQ or other received data other than startMarker as first byte after sending command."));
+				_debugPort.println(F("NAK, ENQ or other received data other than startMarker as first byte after sending command."));
 			#endif
 			
 			return false;
@@ -81,7 +81,7 @@ bool Abnt::receiveBytes() {
 		if (rb == startMarker && receivingInProgress == false) {
 			receivingInProgress = true;
 			#ifdef _debug
-				swSer.println(F("Start Reception."));
+				_debugPort.println(F("Start Reception."));
 			#endif
 		}
 
@@ -89,10 +89,10 @@ bool Abnt::receiveBytes() {
       if (ndx < blockSize) {
         receivedBytes[ndx] = rb;
 				#ifdef _printRx
-					//swSer.print(F("receiveBytes: rb = "));
-					//swSer.println(rb,HEX);
-					swSer.print(F(" ndx = "));
-					swSer.println(ndx);
+					//_debugPort.print(F("receiveBytes: rb = "));
+					//_debugPort.println(rb,HEX);
+					_debugPort.print(F(" ndx = "));
+					_debugPort.println(ndx);
 				#endif
 				ndx++;
 			}
@@ -101,8 +101,8 @@ bool Abnt::receiveBytes() {
         ndx = 0;
 				// sendData = false;
 				#ifdef _debug
-					swSer.print(F("End of reception."));
-					swSer.println(F("Send Ack!"));
+					_debugPort.print(F("End of reception."));
+					_debugPort.println(F("Send Ack!"));
 				#endif
 				// sendAck();
 			}
