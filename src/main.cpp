@@ -29,7 +29,7 @@ unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
 char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
 
-const long interval = 30000;   // Interval at which to pooling the meter (milliseconds)
+const long interval = 7000;   // Interval at which to pooling the meter (milliseconds)
 
 /*
 	Generally, you should use "unsigned long" for variables that hold time
