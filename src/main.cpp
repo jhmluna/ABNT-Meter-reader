@@ -41,7 +41,7 @@ Abnt abnt(swSer);
 
 void setup() {
 	Serial.setRxBufferSize(blockSize);
-	Serial.begin(baudRate);		// Comm Serial port. Must be changed to communication port after the end of development.
+	Serial.begin(baudRate);		// Comm Serial port.
 
 	#ifdef _debug				// Debug serial port. Must be disabled after the end of development.
 		swSer.begin(baudRate);
@@ -73,7 +73,7 @@ void setup() {
 	});
 
 	ArduinoOTA.onEnd([]() {
-		swSer.println("\nEnd");
+		swSer.println(F("\nEnd"));
 	});
 
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -83,15 +83,15 @@ void setup() {
 	ArduinoOTA.onError([](ota_error_t error) {
 		swSer.printf("Error[%u]: ", error);
 		if (error == OTA_AUTH_ERROR) {
-			swSer.println("Auth Failed");
+			swSer.println(F("Auth Failed"));
 		} else if (error == OTA_BEGIN_ERROR) {
-			swSer.println("Begin Failed");
+			swSer.println(F("Begin Failed"));
 		} else if (error == OTA_CONNECT_ERROR) {
-			swSer.println("Connect Failed");
+			swSer.println(F("Connect Failed"));
 		} else if (error == OTA_RECEIVE_ERROR) {
-			swSer.println("Receive Failed");
+			swSer.println(F("Receive Failed"));
 		} else if (error == OTA_END_ERROR) {
-			swSer.println("End Failed");
+			swSer.println(F("End Failed"));
 		}
 	});
 
@@ -108,7 +108,7 @@ void setup() {
   strcat(commandTopic, "/command");
 
   swSer.println("");
-  swSer.print("Tamanho do tópico: ");
+  swSer.print(F("Tamanho do tópico: "));
   swSer.println(TOPIC_LENGTH);
   swSer.println(BASE_TOPIC);
   swSer.println(dataTopic);
@@ -126,8 +126,8 @@ void loop() {
 	if (currentMillis - previousMillis >= interval) {
 		bool meterReady = abnt.sendCommand_23();
 		if (meterReady) {
-			swSer.println("True");
-			(abnt.receiveBytes()) ? swSer.println("Received bytes") : swSer.println("Error in communication");
+			swSer.println(F("True"));
+			(abnt.receiveBytes()) ? swSer.println(F("Received bytes")) : swSer.println(F("Error in communication"));
 		}
 		// Save the last time you read the meter.
 		previousMillis = currentMillis;
