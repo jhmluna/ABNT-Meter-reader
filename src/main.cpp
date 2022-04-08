@@ -29,7 +29,7 @@ unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
 char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
 
-const long interval = 7000;   // Interval at which to pooling the meter (milliseconds)
+const long interval = 15000;   // Interval at which to pooling the meter (milliseconds)
 
 /*
 	Generally, you should use "unsigned long" for variables that hold time
@@ -45,7 +45,7 @@ void setup() {
 
 	#ifdef _debug				// Debug serial port. Must be disabled after the end of development.
 		swSer.begin(baudRate);
-		swSer.print(F("Início do Setup."));
+		swSer.println(F("Setup start."));
 	#endif
 
 	// Desabilita pull up do pino referente ao RX GPIO3 - eagle_soc.h
@@ -98,7 +98,7 @@ void setup() {
 	ArduinoOTA.begin();
 
 	#ifdef _debug
-		swSer.print(F("Fim do Setup."));
+		swSer.print(F("End of Setup."));
 	#endif
 
   strcpy(dataTopic, BASE_TOPIC);
@@ -117,21 +117,24 @@ void setup() {
 }
 
 void loop() {
+	static bool commandSent = false;
 	ArduinoOTA.handle();
 	
 	// Check to see if it's time to read the meter data; that is, if the difference between the current
 	// time and last time you read the meter is bigger than the interval at which you want to read it.
 	unsigned long currentMillis = millis();
 
-	if (currentMillis - previousMillis >= interval) {
-		bool meterReady = abnt.sendCommand_23();
-		if (meterReady) {
-			swSer.println(F("True"));
-			(abnt.receiveBytes()) ? swSer.println(F("Received bytes")) : swSer.println(F("Error in communication"));
-		}
-		// Save the last time you read the meter.
+	if ((currentMillis - previousMillis >= interval) && !commandSent) {
+		commandSent = abnt.sendCommand_23();
+		// Save the last time the meter was readen.
 		previousMillis = currentMillis;
 	}
+	commandSent = abnt.receiveBytes();
+	if (commandSent) {
+		abnt.printArray();
+		commandSent = !commandSent;
+	}
+
 }
 
 // Desabilita pull up do pino referente ao GPIO3 que é o RX do ESP8266 para receber dados da porta ótica.
