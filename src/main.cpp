@@ -3,21 +3,13 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
+#include <ArduinoJson>
 #include "Credentials.h"
 #include "ABNT.h"
 
 // Function prototypes
 void setup_wifi(void);
 void disablePullUp(void);
-void callback(char* topic, byte* payload, unsigned int length);
-void reconnect(void);
-void sendAck(void);
-void showNewData(void);
-void publish_data(unsigned long meterId, unsigned long meter_data[3]);
-unsigned long * converte_energia(byte *message_energia);
-unsigned long converteId(byte *message_id);
-byte bcdToDec(byte val);
-unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 
 #ifdef _debug
 	// Set RX as unused pin in software serial as it is only used for print debug messages
@@ -31,11 +23,11 @@ char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
 
 const long interval = 15000;   // Interval at which to pooling the meter (milliseconds)
 
-/*
+/* Will store last time meter was readen
 	Generally, you should use "unsigned long" for variables that hold time
 	The value will quickly become too large for an int to store
 */
-unsigned long previousMillis = 0;	// Will store last time LED was updated
+unsigned long previousMillis = 0;
 
 Abnt abnt(swSer);
 
@@ -100,7 +92,7 @@ void setup() {
 	#ifdef _debug
 		swSer.print(F("End of Setup."));
 	#endif
-
+	/*
   strcpy(dataTopic, BASE_TOPIC);
   strcat(dataTopic, "/data");
 
@@ -114,6 +106,7 @@ void setup() {
   swSer.println(dataTopic);
   swSer.println(commandTopic);
 	swSer.println(clientId);
+	*/
 }
 
 void loop() {
@@ -129,12 +122,18 @@ void loop() {
 		// Save the last time the meter was readen.
 		previousMillis = currentMillis;
 	}
-	commandSent = abnt.receiveBytes();
+	commandSent = abnt.receiveBytes();	// It's only true when receive all data from the meter.
 	if (commandSent) {
-		abnt.printArray();
+		unsigned long kWh = abnt.getEnergy(true);
+		unsigned long kvarh = abnt.getEnergy(false);
+		unsigned long kw = abnt.getDemand();
+		unsigned long sn = abnt.getSerialNumber();
+		swSer.print(F("Energia ativa: ")); swSer.println(kWh);
+		swSer.print(F("Energia reativa: ")); swSer.println(kvarh);
+		swSer.print(F("Demanda: ")); swSer.println(kw);
+		swSer.print(F("Serial Number: ")); swSer.println(sn);
 		commandSent = !commandSent;
 	}
-
 }
 
 // Desabilita pull up do pino referente ao GPIO3 que é o RX do ESP8266 para receber dados da porta ótica.

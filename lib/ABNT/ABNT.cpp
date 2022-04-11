@@ -134,4 +134,91 @@ void Abnt::printArray() {
 		_debugPort.print(receivedBytes[k], HEX);
 		_debugPort.print(F(","));
 	}
+	_debugPort.println(F(""));
+}
+
+// Calcula CRC da mensagem recebida pela serial.
+unsigned int Abnt::crc16Calc(byte *array, unsigned int tamanho_buffer) {
+
+/* Source: ETC 3.11 – Especificação Técnica Para Saída Serial Assíncrona Unidirecional 
+https://www.copel.com/hpcopel/root/pagcopel2.nsf/0/4310F832B8AD31D00325776F005DCDDB/$FILE/ETC311%20Saida%20Serial%20Medidores%20eletronicos.pdf
+*/
+	unsigned int retorno = 0;
+	unsigned int crcpolinv = 0x4003;
+	unsigned int i;
+	unsigned int j;
+	for (i = 0; i < tamanho_buffer; i++) {
+		retorno ^= (array[i] & 0xFF);
+		for (j = 0; j < 8; j++) {
+			if ((retorno & 0x0001) != 0) {
+				retorno ^= crcpolinv;
+				retorno >>= 1;
+				retorno |= 0x8000;
+			}
+			else {
+				retorno >>= 1;
+			}
+		}
+	}
+	return retorno;
+}
+
+// Converte formato BCD para decimal.
+byte Abnt::bcdToDec(byte val) {
+	return( (val/16*10) + (val%16) );
+}
+
+// Collect active and reactive energy saved in octets 006 to 010 and 080 to 084.
+// energyType: true -> kwh, false -> kvarh
+unsigned long Abnt::getEnergy(bool energyType) {
+	unsigned long energy = 0;
+	unsigned long multiplicador[5] = {10000000UL, 1000000UL, 10000UL, 100UL, 1UL};
+	int energyIndex = energyType ? 5 : 79;
+	for (int j = 0; j <= 4; j++) {
+		energy = energy + (bcdToDec(receivedBytes[j + energyIndex]) * multiplicador[j]);
+	}
+	return energy * 2 / 1000;
+}
+
+// Collect demand saved in octets 041 to 043.
+unsigned long Abnt::getDemand(void) {
+	unsigned long demand = 0;
+	unsigned long multiplicador[3] = {10000UL, 100UL, 1UL};
+	for (int j = 0; j <= 2; j++) {
+		demand = demand + (bcdToDec(receivedBytes[j + 40]) * multiplicador[j]);
+	}
+	return demand * 8;
+}
+
+// Converte para valor numérico o número de série salvo nos octetos 002 a 005.
+unsigned long Abnt::getSerialNumber(void) {
+	unsigned long serialNumber = 0;
+	unsigned long multiplicador[4] = {100000000UL, 10000UL, 100UL, 1UL};
+	for (int j = 0; j <= 3; j++) {
+		serialNumber = serialNumber + (unsigned long)(bcdToDec(receivedBytes[j + 1]) * multiplicador[j]);
+	}
+	return serialNumber;
+}
+
+void Abnt::publishNewMeterData() {
+	#ifdef _debug
+		_debugPort.println(F("Start publishNewMeterData"));
+	#endif
+
+	// Calcula CRC dos bytes recebidos. Se diferente de 0, sai da função.
+	unsigned int crc = crc16Calc(receivedBytes, blockSize);
+	if (crc != 0)
+	{
+		#ifdef _debug
+			_debugPort.println(F("Erro de CRC."));
+		#endif
+		return;
+	}
+	else {
+		_debugPort.println(F("CRC OK."));
+		unsigned long ativa = getEnergy(true);
+		unsigned long reativa = getEnergy(false);
+		_debugPort.print(F("Energia ativa: ")); _debugPort.println(ativa);
+		_debugPort.print(F("Energia reativa: ")); _debugPort.println(reativa);
+	}
 }

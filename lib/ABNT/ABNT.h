@@ -22,14 +22,14 @@ class Abnt
 	const byte _NAK = 0x15;
 	const byte _STARTMARKER = 0x23;
 
-  byte receivedBytes[blockSize];
+  byte receivedBytes[blockSize];  // Array to store the data received from the meter.
+	const byte command_23[66];  	  // Array with Command 23 - Reading registers of visible channels.
+	SoftwareSerial & _debugPort;    // Serial port for debug purposes.
 
-	// Array with Command 23 - Reading registers of visible channels.
-	const byte command_23[66];
-	// Serial port for debug purposes.
-	SoftwareSerial & _debugPort;
-
+  // Private functions
 	void sendAck(void);
+	unsigned int crc16Calc(byte *array, unsigned int tamanho_buffer);
+	byte bcdToDec(byte val);
 
 public:
 	Abnt(SoftwareSerial & ss)
@@ -45,6 +45,10 @@ public:
 	bool sendCommand_23(void);
 	bool receiveBytes(void);
 	void printArray(void);
+  unsigned long getEnergy(bool energyType);
+  unsigned long getDemand(void);
+  unsigned long getSerialNumber(void);
+	void publishNewMeterData(void);
 };
 
 #endif
