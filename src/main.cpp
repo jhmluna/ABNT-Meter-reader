@@ -3,24 +3,13 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
+#include <ArduinoJson>
 #include "Credentials.h"
 #include "ABNT.h"
-
-#define _debug			// Set debug mode for development.
-//#define _printRx		// Sets mode for printing received bytes. Used to increase the RX buffer.
 
 // Function prototypes
 void setup_wifi(void);
 void disablePullUp(void);
-void callback(char* topic, byte* payload, unsigned int length);
-void reconnect(void);
-void sendAck(void);
-void showNewData(void);
-void publish_data(unsigned long meterId, unsigned long meter_data[3]);
-unsigned long * converte_energia(byte *message_energia);
-unsigned long converteId(byte *message_id);
-byte bcdToDec(byte val);
-unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 
 #ifdef _debug
 	// Set RX as unused pin in software serial as it is only used for print debug messages
@@ -32,23 +21,23 @@ unsigned int calcula_crc16(byte *array, int tamanho_buffer);
 char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
 char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
 
-const long interval = 30000;   // Interval at which to pooling the meter (milliseconds)
+const long interval = 15000;   // Interval at which to pooling the meter (milliseconds)
 
-/*
+/* Will store last time meter was readen
 	Generally, you should use "unsigned long" for variables that hold time
 	The value will quickly become too large for an int to store
 */
-unsigned long previousMillis = 0;	// Will store last time LED was updated
+unsigned long previousMillis = 0;
 
-Abnt abnt;
+Abnt abnt(swSer);
 
 void setup() {
 	Serial.setRxBufferSize(blockSize);
-	Serial.begin(baudRate);		// Comm Serial port. Must be changed to communication port after the end of development.
+	Serial.begin(baudRate);		// Comm Serial port.
 
 	#ifdef _debug				// Debug serial port. Must be disabled after the end of development.
 		swSer.begin(baudRate);
-		swSer.print(F("Início do Setup."));
+		swSer.println(F("Setup start."));
 	#endif
 
 	// Desabilita pull up do pino referente ao RX GPIO3 - eagle_soc.h
@@ -76,7 +65,7 @@ void setup() {
 	});
 
 	ArduinoOTA.onEnd([]() {
-		swSer.println("\nEnd");
+		swSer.println(F("\nEnd"));
 	});
 
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -86,24 +75,24 @@ void setup() {
 	ArduinoOTA.onError([](ota_error_t error) {
 		swSer.printf("Error[%u]: ", error);
 		if (error == OTA_AUTH_ERROR) {
-			swSer.println("Auth Failed");
+			swSer.println(F("Auth Failed"));
 		} else if (error == OTA_BEGIN_ERROR) {
-			swSer.println("Begin Failed");
+			swSer.println(F("Begin Failed"));
 		} else if (error == OTA_CONNECT_ERROR) {
-			swSer.println("Connect Failed");
+			swSer.println(F("Connect Failed"));
 		} else if (error == OTA_RECEIVE_ERROR) {
-			swSer.println("Receive Failed");
+			swSer.println(F("Receive Failed"));
 		} else if (error == OTA_END_ERROR) {
-			swSer.println("End Failed");
+			swSer.println(F("End Failed"));
 		}
 	});
 
 	ArduinoOTA.begin();
 
 	#ifdef _debug
-		swSer.print(F("Fim do Setup."));
+		swSer.print(F("End of Setup."));
 	#endif
-
+	/*
   strcpy(dataTopic, BASE_TOPIC);
   strcat(dataTopic, "/data");
 
@@ -111,25 +100,39 @@ void setup() {
   strcat(commandTopic, "/command");
 
   swSer.println("");
-  swSer.print("Tamanho do tópico: ");
+  swSer.print(F("Tamanho do tópico: "));
   swSer.println(TOPIC_LENGTH);
   swSer.println(BASE_TOPIC);
   swSer.println(dataTopic);
   swSer.println(commandTopic);
 	swSer.println(clientId);
+	*/
 }
 
 void loop() {
+	static bool commandSent = false;
 	ArduinoOTA.handle();
 	
 	// Check to see if it's time to read the meter data; that is, if the difference between the current
 	// time and last time you read the meter is bigger than the interval at which you want to read it.
 	unsigned long currentMillis = millis();
 
-	if (currentMillis - previousMillis >= interval) {
-		(abnt.sendCommand_23()) ? swSer.println("True") : swSer.println("False");
-		// Save the last time you read the meter.
+	if ((currentMillis - previousMillis >= interval) && !commandSent) {
+		commandSent = abnt.sendCommand_23();
+		// Save the last time the meter was readen.
 		previousMillis = currentMillis;
+	}
+	commandSent = abnt.receiveBytes();	// It's only true when receive all data from the meter.
+	if (commandSent) {
+		unsigned long kWh = abnt.getEnergy(true);
+		unsigned long kvarh = abnt.getEnergy(false);
+		unsigned long kw = abnt.getDemand();
+		unsigned long sn = abnt.getSerialNumber();
+		swSer.print(F("Energia ativa: ")); swSer.println(kWh);
+		swSer.print(F("Energia reativa: ")); swSer.println(kvarh);
+		swSer.print(F("Demanda: ")); swSer.println(kw);
+		swSer.print(F("Serial Number: ")); swSer.println(sn);
+		commandSent = !commandSent;
 	}
 }
 
