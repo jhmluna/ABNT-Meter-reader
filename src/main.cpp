@@ -12,6 +12,8 @@
 void setup_wifi(void);
 void disablePullUp(void);
 std::string generateJson(void);
+void reconnect(void);
+void callback(char* topic, byte* payload, unsigned int length);
 
 #ifdef _debug
 	// Set RX as unused pin in software serial as it is only used for print debug messages
@@ -20,9 +22,6 @@ std::string generateJson(void);
 	SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
 #endif
 
-char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
-char commandTopic[TOPIC_LENGTH + 7];     // Topic used to send data to NodeRed
-
 const long interval = 15000;   // Interval at which to pooling the meter (milliseconds)
 
 /* Will store last time meter was readen
@@ -30,6 +29,17 @@ const long interval = 15000;   // Interval at which to pooling the meter (millis
 	The value will quickly become too large for an int to store
 */
 unsigned long previousMillis = 0;
+
+// Sets the server details and message callback function.
+WiFiClient espClient;
+PubSubClient client(mqtt_server, 1883, callback, espClient);
+// MQTT config and LWT message constants
+char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
+char commandTopic[TOPIC_LENGTH + 7];  // Topic used to send command to NodeRed
+char willTopic[TOPIC_LENGTH + 6];			// Topic used to send status to NodeRed
+byte willQos = 1;
+const char *willMessage = "Offline";
+bool willRetain = true;
 
 Abnt abnt(swSer);
 
@@ -91,12 +101,15 @@ void setup() {
 	#ifdef _debug
 		swSer.print(F("End of Setup."));
 	#endif
-	/*
-  strcpy(dataTopic, BASE_TOPIC);
+	
+	strcpy(dataTopic, BASE_TOPIC);
   strcat(dataTopic, "/data");
 
   strcpy(commandTopic, BASE_TOPIC);
   strcat(commandTopic, "/command");
+
+	strcpy(willTopic, BASE_TOPIC);
+  strcat(willTopic, "/status");
 
   swSer.println("");
   swSer.print(F("Tamanho do tópico: "));
@@ -104,8 +117,8 @@ void setup() {
   swSer.println(BASE_TOPIC);
   swSer.println(dataTopic);
   swSer.println(commandTopic);
+  swSer.println(willTopic);
 	swSer.println(clientId);
-	*/
 }
 
 void loop() {
@@ -123,10 +136,19 @@ void loop() {
 	}
 	commandSent = abnt.receiveBytes();	// It's only true when receive all data from the meter.
 	if (commandSent) {
-		std::string teste = generateJson();
-		swSer.println(teste.c_str());
+		std::string meterMessage = generateJson();
+
+		// Publish meter data in Node Red
+		#ifdef _debug
+			swSer.print(F("Publish message: "));
+			swSer.println(meterMessage.c_str());
+		#endif
+		client.publish(dataTopic, meterMessage.c_str());
+
 		commandSent = !commandSent;
 	}
+	if (!client.connected()) reconnect();
+	client.loop();
 }
 
 // Configure Wifi 
@@ -178,4 +200,64 @@ std::string generateJson() {
 	std::string JsonString = "";
 	serializeJson(doc, JsonString);
 	return JsonString;
+}
+
+// MQTT Server connection/reconnection
+void reconnect() {
+	// Loop until we're reconnected
+	
+	int attempt = 0;
+	while (!client.connected()) {
+		
+		#ifdef _debug
+			swSer.print(F("Attempting MQTT connection..."));
+		#endif
+
+		// Attempt to connect
+		if (client.connect(clientId, willTopic, willQos, willRetain, willMessage)) {
+			delay(1);
+
+			// Subscribe to message Topic defined.
+			client.subscribe(commandTopic);
+			
+			#ifdef _debug
+				swSer.println("Connected as " + String(clientId));
+				swSer.println("Subscribe to topic " + String(commandTopic));
+				swSer.println("Data are send to topic " + String(dataTopic));
+			#endif
+			
+			// Publish status message indicating the client Node as online.
+			client.publish(willTopic, "Online");
+		}
+		else {
+			
+			#ifdef _debug
+				swSer.print(F("Failed, rc = "));
+				swSer.println(client.state());
+				swSer.println(F("Try again in 5 seconds."));
+			#endif
+			
+			attempt += 1;
+			if (attempt >= 20) ESP.restart();
+			
+			// Wait 5 seconds before retrying
+			delay(5000);
+			
+			#ifdef _debug
+				swSer.print(F("Attempt number: "));
+				swSer.println(attempt);
+			#endif
+		}
+	}
+}
+
+// Message callback function called when a message arrives for a subscription created by this client.
+void callback(char* topic, byte* payload, unsigned int length) {
+	swSer.print("Message arrived [");
+	swSer.print(topic);
+	swSer.print("] ");
+	for (int i = 0; i < length; i++) {
+		swSer.print((char)payload[i]);
+	}
+	swSer.println();
 }
