@@ -30,6 +30,7 @@ class Abnt
 	void sendAck(void);
 	unsigned int crc16Calc(byte *array, unsigned int tamanho_buffer);
 	byte bcdToDec(byte val);
+	void disablePullUp(void);
 
 public:
 	Abnt(SoftwareSerial & ss)
@@ -44,11 +45,9 @@ public:
 	}
 	bool sendCommand_23(void);
 	bool receiveBytes(void);
-	void printArray(void);
   unsigned long getEnergy(bool energyType);
   unsigned long getDemand(void);
   unsigned long getSerialNumber(void);
-	void publishNewMeterData(void);
 };
 
 #endif

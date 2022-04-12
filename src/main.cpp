@@ -3,13 +3,15 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
-#include <ArduinoJson>
+#include <ArduinoJson.h>
+#include <string>
 #include "Credentials.h"
 #include "ABNT.h"
 
 // Function prototypes
 void setup_wifi(void);
 void disablePullUp(void);
+std::string generateJson(void);
 
 #ifdef _debug
 	// Set RX as unused pin in software serial as it is only used for print debug messages
@@ -39,9 +41,6 @@ void setup() {
 		swSer.begin(baudRate);
 		swSer.println(F("Setup start."));
 	#endif
-
-	// Desabilita pull up do pino referente ao RX GPIO3 - eagle_soc.h
-	disablePullUp();
 
 	// Configura GPIO2 como saída para ser usado como chave que conecta/desconecta o pino GPIO1/U0TXD à saída.
 	// GPIO1 tem efeito na inicialização, se mantido em LOW; ESP não será inicializado neste caso.
@@ -124,26 +123,13 @@ void loop() {
 	}
 	commandSent = abnt.receiveBytes();	// It's only true when receive all data from the meter.
 	if (commandSent) {
-		unsigned long kWh = abnt.getEnergy(true);
-		unsigned long kvarh = abnt.getEnergy(false);
-		unsigned long kw = abnt.getDemand();
-		unsigned long sn = abnt.getSerialNumber();
-		swSer.print(F("Energia ativa: ")); swSer.println(kWh);
-		swSer.print(F("Energia reativa: ")); swSer.println(kvarh);
-		swSer.print(F("Demanda: ")); swSer.println(kw);
-		swSer.print(F("Serial Number: ")); swSer.println(sn);
+		std::string teste = generateJson();
+		swSer.println(teste.c_str());
 		commandSent = !commandSent;
 	}
 }
 
-// Desabilita pull up do pino referente ao GPIO3 que é o RX do ESP8266 para receber dados da porta ótica.
-void disablePullUp() {
-	// Desabilita pull up do pino referente ao RX GPIO3 - eagle_soc.h
-	// C:\Users\<USER>\AppData\Local\Arduino15\packages\esp8266\hardware\esp8266\2.5.2\tools\sdk\include\eagle_soc.h
-	PIN_PULLUP_DIS(PERIPHS_IO_MUX_U0RXD_U);
-}
-
-// Configura o Wifi 
+// Configure Wifi 
 void setup_wifi() {
 	
 	delay(10);
@@ -156,7 +142,7 @@ void setup_wifi() {
 		swSer.println(WIFI_SSID);
 	#endif
 
-	WiFi.begin(WIFI_SSID, WIFI_PWD);
+	WiFi.begin(WIFI_SSID, WIFI_PWD);	// Saved in Credentials.h
 	while (WiFi.status() != WL_CONNECTED) {
 		delay(500);
 		#ifdef _debug
@@ -165,7 +151,7 @@ void setup_wifi() {
 	}
 	
 	// Set hostname
-	WiFi.hostname(clientId);
+	WiFi.hostname(clientId);	// Saved in Credentials.h
 	
 	// Disconnect stations from the network established by the soft-AP.
 	WiFi.softAPdisconnect(true);
@@ -177,4 +163,19 @@ void setup_wifi() {
 		swSer.print(F("WiFi connected.\nIP address: "));
 		swSer.println(WiFi.localIP());
 	#endif
+}
+
+// Generate JSON formatted String
+std::string generateJson() {
+	const int capacity = JSON_OBJECT_SIZE(4);		// Set JsonDocument capacity to hold 4 members.
+	StaticJsonDocument<capacity> doc;
+	// Add members to JsonDocument
+	doc["kwh"] = abnt.getEnergy(true);
+	doc["kvarh"] = abnt.getEnergy(false);
+	doc["kw"] = abnt.getDemand();
+	doc["sn"] = abnt.getSerialNumber();
+	// Return JsonDocument serialized.
+	std::string JsonString = "";
+	serializeJson(doc, JsonString);
+	return JsonString;
 }

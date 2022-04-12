@@ -129,14 +129,6 @@ void Abnt::sendAck() {
 		#endif
 }
 
-void Abnt::printArray() {
-	for (int k = 0; k < blockSize; k++) {
-		_debugPort.print(receivedBytes[k], HEX);
-		_debugPort.print(F(","));
-	}
-	_debugPort.println(F(""));
-}
-
 // Calcula CRC da mensagem recebida pela serial.
 unsigned int Abnt::crc16Calc(byte *array, unsigned int tamanho_buffer) {
 
@@ -172,7 +164,7 @@ byte Abnt::bcdToDec(byte val) {
 // energyType: true -> kwh, false -> kvarh
 unsigned long Abnt::getEnergy(bool energyType) {
 	unsigned long energy = 0;
-	unsigned long multiplicador[5] = {10000000UL, 1000000UL, 10000UL, 100UL, 1UL};
+	unsigned long multiplicador[5] = {100000000UL, 1000000UL, 10000UL, 100UL, 1UL};
 	int energyIndex = energyType ? 5 : 79;
 	for (int j = 0; j <= 4; j++) {
 		energy = energy + (bcdToDec(receivedBytes[j + energyIndex]) * multiplicador[j]);
@@ -193,32 +185,16 @@ unsigned long Abnt::getDemand(void) {
 // Converte para valor numérico o número de série salvo nos octetos 002 a 005.
 unsigned long Abnt::getSerialNumber(void) {
 	unsigned long serialNumber = 0;
-	unsigned long multiplicador[4] = {100000000UL, 10000UL, 100UL, 1UL};
+	unsigned long multiplicador[4] = {1000000UL, 10000UL, 100UL, 1UL};
 	for (int j = 0; j <= 3; j++) {
 		serialNumber = serialNumber + (unsigned long)(bcdToDec(receivedBytes[j + 1]) * multiplicador[j]);
 	}
 	return serialNumber;
 }
 
-void Abnt::publishNewMeterData() {
-	#ifdef _debug
-		_debugPort.println(F("Start publishNewMeterData"));
-	#endif
-
-	// Calcula CRC dos bytes recebidos. Se diferente de 0, sai da função.
-	unsigned int crc = crc16Calc(receivedBytes, blockSize);
-	if (crc != 0)
-	{
-		#ifdef _debug
-			_debugPort.println(F("Erro de CRC."));
-		#endif
-		return;
-	}
-	else {
-		_debugPort.println(F("CRC OK."));
-		unsigned long ativa = getEnergy(true);
-		unsigned long reativa = getEnergy(false);
-		_debugPort.print(F("Energia ativa: ")); _debugPort.println(ativa);
-		_debugPort.print(F("Energia reativa: ")); _debugPort.println(reativa);
-	}
+// Desabilita pull up do pino referente ao GPIO3 que é o RX do ESP8266 para receber dados da porta ótica.
+void Abnt::disablePullUp() {
+		// Desabilita pull up do pino referente ao RX GPIO3 - eagle_soc.h
+	// C:\Users\<USER>\AppData\Local\Arduino15\packages\esp8266\hardware\esp8266\2.5.2\tools\sdk\include\eagle_soc.h
+	PIN_PULLUP_DIS(PERIPHS_IO_MUX_U0RXD_U);
 }
