@@ -22,17 +22,17 @@ void callback(char* topic, byte* payload, unsigned int length);
 	SoftwareSerial swSer(SW_SERIAL_UNUSED_PIN, 0);
 #endif
 
-const long interval = 15000;   // Interval at which to pooling the meter (milliseconds)
-
 /* Will store last time meter was readen
 	Generally, you should use "unsigned long" for variables that hold time
 	The value will quickly become too large for an int to store
 */
 unsigned long previousMillis = 0;
+const long interval = 15000;   // Interval at which to pooling the meter (milliseconds)
 
 // Sets the server details and message callback function.
 WiFiClient espClient;
 PubSubClient client(mqtt_server, 1883, callback, espClient);
+
 // MQTT config and LWT message constants
 char dataTopic[TOPIC_LENGTH + 4];     // Topic used to send data to NodeRed
 char commandTopic[TOPIC_LENGTH + 7];  // Topic used to send command to NodeRed
@@ -41,6 +41,7 @@ byte willQos = 1;
 const char *willMessage = "Offline";
 bool willRetain = true;
 
+// Abnt class for meter communication
 Abnt abnt(swSer);
 
 void setup() {
@@ -102,6 +103,7 @@ void setup() {
 		swSer.print(F("End of Setup."));
 	#endif
 	
+	// 
 	strcpy(dataTopic, BASE_TOPIC);
   strcat(dataTopic, "/data");
 
@@ -111,14 +113,16 @@ void setup() {
 	strcpy(willTopic, BASE_TOPIC);
   strcat(willTopic, "/status");
 
-  swSer.println("");
-  swSer.print(F("Tamanho do tópico: "));
-  swSer.println(TOPIC_LENGTH);
-  swSer.println(BASE_TOPIC);
-  swSer.println(dataTopic);
-  swSer.println(commandTopic);
-  swSer.println(willTopic);
-	swSer.println(clientId);
+	#ifdef _debug
+		swSer.println("");
+		swSer.print(F("Tamanho do tópico: "));
+		swSer.println(TOPIC_LENGTH);
+		swSer.println(BASE_TOPIC);
+		swSer.println(dataTopic);
+		swSer.println(commandTopic);
+		swSer.println(willTopic);
+		swSer.println(clientId);
+	#endif
 }
 
 void loop() {
@@ -139,13 +143,13 @@ void loop() {
 		std::string meterMessage = generateJson();
 
 		// Publish meter data in Node Red
+		client.publish(dataTopic, meterMessage.c_str());
 		#ifdef _debug
 			swSer.print(F("Publish message: "));
 			swSer.println(meterMessage.c_str());
 		#endif
-		client.publish(dataTopic, meterMessage.c_str());
-
-		commandSent = !commandSent;
+	
+		commandSent = !commandSent;		// 
 	}
 	if (!client.connected()) reconnect();
 	client.loop();
