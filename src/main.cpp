@@ -103,17 +103,17 @@ void setup() {
 		swSer.print(F("End of Setup."));
 	#endif
 	
-	// 
-	strcpy(dataTopic, BASE_TOPIC);
+	// Define topics to publish in Node-red
+	strcpy(dataTopic, BASE_TOPIC);	// Data regarding meter
   strcat(dataTopic, "/data");
 
-  strcpy(commandTopic, BASE_TOPIC);
+  strcpy(commandTopic, BASE_TOPIC);  // Topic to receive commands from Node-red
   strcat(commandTopic, "/command");
 
-	strcpy(willTopic, BASE_TOPIC);
+	strcpy(willTopic, BASE_TOPIC);	// 
   strcat(willTopic, "/status");
 
-	#ifdef _debug
+	#ifdef _printRx
 		swSer.println("");
 		swSer.print(F("Tamanho do tópico: "));
 		swSer.println(TOPIC_LENGTH);
@@ -191,15 +191,16 @@ void setup_wifi() {
 	#endif
 }
 
-// Generate JSON formatted String
+// Generate JSON formatted String from meter data
 std::string generateJson() {
 	const int capacity = JSON_OBJECT_SIZE(4);		// Set JsonDocument capacity to hold 4 members.
 	StaticJsonDocument<capacity> doc;
 	// Add members to JsonDocument
+	doc["id"] = clientId;
+	doc["sn"] = abnt.getSerialNumber();
 	doc["kwh"] = abnt.getEnergy(true);
 	doc["kvarh"] = abnt.getEnergy(false);
 	doc["kw"] = abnt.getDemand();
-	doc["sn"] = abnt.getSerialNumber();
 	// Return JsonDocument serialized.
 	std::string JsonString = "";
 	serializeJson(doc, JsonString);

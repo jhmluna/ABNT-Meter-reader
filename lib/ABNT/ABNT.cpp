@@ -12,10 +12,7 @@ bool Abnt::sendCommand_23() {
 	delay(1000);			// Aguarda tempo para medidor reconhecer.
 	Serial.begin(baudRate);		// Habilita serial
 
-  /* Desabilita pull up do pino referente ao GPIO3 que é o RX do ESP8266 para receber dados da porta ótica.
-	  C:\Users\<USER>\AppData\Local\Arduino15\packages\esp8266\hardware\esp8266\2.5.2\tools\sdk\include\eagle_soc.h
-  */
-	PIN_PULLUP_DIS(PERIPHS_IO_MUX_U0RXD_U);
+  disablePullUp();
 	delay(1500);			// Aguarda tempo para medidor reconhecer início de transmissão.
 	
 	#ifdef _debug
@@ -115,10 +112,7 @@ void Abnt::sendAck() {
 	delay(1000);			// Aguarda tempo para medidor reconhecer.
 	Serial.begin(baudRate);		// Habilita serial
 
-	/* Desabilita pull up do pino referente ao GPIO3 que é o RX do ESP8266 para receber dados da porta ótica.
-	  C:\Users\<USER>\AppData\Local\Arduino15\packages\esp8266\hardware\esp8266\2.5.2\tools\sdk\include\eagle_soc.h
-  */
-	PIN_PULLUP_DIS(PERIPHS_IO_MUX_U0RXD_U);
+	disablePullUp();
 	delay(1500);			// Aguarda tempo para medidor reconhecer início de transmissão.
 	
 	Serial.write(_ACK);		// Envia ACK para medidor
